@@ -1,0 +1,17 @@
+# Data mentah: jangan pernah masuk repo publik
+*.xlsx
+*.xls
+*.csv
+raw/
+
+# Rahasia
+.env
+.dev.vars
+*.key
+
+# Sisa build / sistem
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.wrangler/
