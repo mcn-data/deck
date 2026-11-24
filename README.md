@@ -1,6 +1,6 @@
-# Dashboard MCN
+# Dashboard MNC Group
 
-Dashboard performa digital MCN (holding). Repo ini menghasilkan dua keluaran:
+Dashboard performa digital ekosistem MNC Group, dibangun bertahap: 3TV (RCTI, GTV, MNCTV) dulu, lalu IMG dan unit lain. Repo ini menghasilkan dua keluaran:
 
 1. **Dashboard mandiri**: HTML statis di GitHub Pages, tidak butuh Claude atau server.
 2. **Dashboard + Ask (agentic AI)**: dashboard yang sama, ditambah panel tanya-jawab ke Claude lewat penghubung (Cloudflare Worker), dan bisa dibuka siapa pun lewat link.
@@ -22,7 +22,8 @@ Data dipra-agregasi di `data.json`, jadi dashboard tidak perlu server.
 |---|---|
 | `index.html` | Halaman dashboard yang tayang di GitHub Pages |
 | `data.js` | Data hasil agregasi, dimuat oleh `index.html` |
-| `scripts/` | `build_data.py`, `build_app.py`: Excel → data → HTML |
+| `template.html` | Sumber tampilan dashboard (diedit di sini, bukan di `index.html`) |
+| `scripts/` | `build_data.py` (Excel → `data.json`), `build_app.py` (template + data → `index.html`, `data.js`) |
 | `worker/` | Kode Cloudflare Worker untuk panel Ask |
 | `tests/` | Pengujian angka dan tampilan |
 
@@ -36,8 +37,17 @@ Semua berkas di repo ini bisa dibaca siapa pun.
 ## Status
 
 - [x] Repo dibuat
-- [ ] GitHub Pages aktif
-- [ ] Pemetaan sumber data MCN
-- [ ] `build_data.py` dan verifikasi angka
-- [ ] Dashboard mandiri (v1)
+- [x] GitHub Pages aktif
+- [x] Pemetaan sumber data tahap 1: 3TV (RCTI, GTV, MNCTV) YouTube
+- [x] `build_data.py` dan verifikasi angka
+- [x] Dashboard mandiri (v1)
 - [ ] Worker + panel Ask (agentic AI)
+
+## Cara update data
+
+```bash
+python3 scripts/build_data.py raw/     # Excel di folder raw/ (tidak ikut ke repo)
+python3 scripts/build_app.py           # menaikkan nomor Build
+python3 tests/test_dashboard.py        # wajib lolos sebelum unggah
+```
+Unggah `index.html` dan `data.js`, lalu buka link dengan **Ctrl+F5** dan cocokkan nomor Build.

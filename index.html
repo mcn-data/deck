@@ -3,28 +3,405 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard MCN</title>
+<title>Dashboard MNC Group · YouTube</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; }
+  /* Palet dari skill dataviz (sudah tervalidasi CVD). Warna mengikuti ENTITAS
+     (unit), bukan urutan ranking — supaya filter tidak mengecat ulang unit. */
+  :root {
+    --bg:#f4f4f2; --surface:#fcfcfb; --border:#e3e2de;
+    --text-1:#0b0b0b; --text-2:#52514e; --text-3:#7a7974;
+    --grid:#ebeae6;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+    --good:#0a7d0a; --bad:#d03b3b;
+    --accent:#2a78d6;
+  }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; display:grid; place-items:center;
-         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-         background:var(--bg); color:var(--text); }
-  .card { background:var(--card); padding:40px 48px; border-radius:16px; max-width:520px; text-align:center; }
-  h1 { margin:0 0 8px; font-size:28px; }
-  p  { margin:0; color:var(--muted); line-height:1.6; }
-  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--accent);
-         margin-right:8px; animation:pulse 1.6s infinite; }
-  @keyframes pulse { 50% { opacity:.3; } }
-  footer { position:fixed; left:12px; bottom:10px; font-size:12px; color:var(--muted); }
+  body { margin:0; background:var(--bg); color:var(--text-1);
+         font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { background:#0d1b2a; color:#fff; padding:18px 28px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; font-weight:650; }
+  header .sub { color:#b7c3d0; font-size:13px; }
+  main { max-width:1360px; margin:0 auto; padding:18px 24px 60px; }
+
+  .filters { position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0 12px;
+             display:flex; flex-wrap:wrap; gap:14px 22px; align-items:flex-end; border-bottom:1px solid var(--border); }
+  .f { display:flex; flex-direction:column; gap:4px; }
+  .f label { font-size:11px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:.04em; }
+  select, input[type=search] { font:inherit; padding:6px 10px; border:1px solid #cfcdc7; border-radius:8px; background:#fff; color:var(--text-1); min-height:34px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { border:1px solid #cfcdc7; background:#fff; border-radius:999px; padding:6px 12px; cursor:pointer; font:inherit; display:flex; align-items:center; gap:6px; min-height:34px; }
+  .chip[aria-pressed=true] { background:#0d1b2a; color:#fff; border-color:#0d1b2a; }
+  .chip .sw { width:10px; height:10px; border-radius:3px; }
+  .note { font-size:12px; color:var(--text-3); }
+
+  h2 { font-size:15px; margin:26px 0 10px; font-weight:650; }
+  h2 small { font-weight:400; color:var(--text-3); font-size:12px; margin-left:6px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:14px; }
+  .kpi .lab { font-size:12px; color:var(--text-2); font-weight:600; }
+  .kpi .val { font-size:26px; font-weight:700; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
+  .kpi .cmp { font-size:12px; color:var(--text-3); }
+  .delta { font-weight:650; font-variant-numeric:tabular-nums; }
+  .up { color:var(--good); } .down { color:var(--bad); } .flat { color:var(--text-3); }
+
+  .row2 { display:grid; grid-template-columns:2fr 1fr; gap:12px; }
+  @media (max-width:980px) { .row2 { grid-template-columns:1fr; } }
+  .chart-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2); }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .legend i { width:14px; height:3px; border-radius:2px; display:inline-block; }
+  svg text { font-family:inherit; }
+  .tip { position:fixed; pointer-events:none; background:#fff; border:1px solid var(--border); border-radius:8px;
+         box-shadow:0 4px 16px rgba(0,0,0,.12); padding:8px 10px; font-size:12px; display:none; z-index:20; min-width:160px; }
+  .tip b { display:block; margin-bottom:4px; }
+  .tip div { display:flex; justify-content:space-between; gap:14px; }
+  .tip .sw { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th, td { padding:7px 10px; text-align:right; border-bottom:1px solid var(--grid); white-space:nowrap; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-2); cursor:pointer; user-select:none; position:sticky; top:0; background:var(--surface); }
+  th:first-child, td:first-child, th.l, td.l { text-align:left; }
+  th.sorted::after { content:" ▼"; font-size:9px; }
+  th.sorted.asc::after { content:" ▲"; }
+  tbody tr:hover { background:#f3f6fb; }
+  .tbl-wrap { overflow:auto; max-height:560px; }
+  .tag { display:inline-flex; align-items:center; gap:6px; }
+  .tag .sw { width:8px; height:8px; border-radius:2px; }
+  .btn { font:inherit; border:1px solid #cfcdc7; background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; min-height:34px; }
+  .btn:hover { background:#f0f0ee; }
+  details { margin-top:24px; }
+  details summary { cursor:pointer; color:var(--text-2); font-weight:600; }
+  details li { margin:4px 0; color:var(--text-2); }
+  header .build { margin-left:auto; font-size:11px; color:#8fa1b3; }
+  .warn { background:#fff7e0; border:1px solid #f1d58a; color:#6b4e00; padding:8px 12px; border-radius:8px; font-size:13px; margin-top:10px; display:none; }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Dashboard MCN</h1>
-    <p><span class="dot"></span>Sedang dibangun. Dashboard performa digital akan tampil di halaman ini.</p>
+<header>
+  <h1>Dashboard MNC Group</h1>
+  <span class="sub" id="sub"></span>
+  <span class="build" title="Nomor Build: pastikan sama dengan yang dikirim. Kalau beda, tekan Ctrl+F5.">Build 2 · 24 Nov 2026 13:32</span>
+</header>
+
+<main>
+  <div class="filters">
+    <div class="f"><label for="fFrom">Period</label>
+      <div style="display:flex;gap:6px;align-items:center"><select id="fFrom"></select><span class="note">s/d</span><select id="fTo"></select></div></div>
+    <div class="f"><label for="fCmp">Compare</label>
+      <select id="fCmp">
+        <option value="yoy">Same period last year (YoY)</option>
+        <option value="prev">Previous period</option>
+      </select></div>
+    <div class="f"><label>Unit</label><div class="chips" id="fUnit"></div></div>
+    <div class="f"><label for="fCh">Channel</label><select id="fCh"></select></div>
   </div>
-  <!-- Nomor Build: cara memastikan yang dibuka bukan salinan lama (cache browser). -->
-  <footer>Build 0 · 18 Nov 2026</footer>
+  <div class="note" id="scopeNote" style="margin-top:8px"></div>
+  <div class="warn" id="cmpWarn"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="row2" style="margin-top:12px">
+    <div class="card">
+      <div class="chart-head">
+        <strong>Monthly trend</strong>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="legend" id="trendLegend"></div>
+          <select id="fTrend" aria-label="Metrics"></select>
+        </div>
+      </div>
+      <div id="trend"></div>
+      <div class="note">Area berarsir = periode terpilih. Arahkan kursor ke grafik untuk melihat angka per bulan.</div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><strong>Unit summary</strong></div>
+      <div id="unitTbl"></div>
+    </div>
+  </div>
+
+  <h2>Channel ranking <small id="rankNote"></small></h2>
+  <div class="card">
+    <div class="chart-head">
+      <input type="search" id="fSearch" placeholder="Cari channel…" style="min-width:240px">
+      <button class="btn" id="btnCsv">Export CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="rank"></table></div>
+  </div>
+
+  <details>
+    <summary>Cara angka dihitung</summary>
+    <ul>
+      <li><b>Views, Watch time, Subscribers, Revenue</b>: dijumlahkan langsung dari data bulanan per channel. Subscribers = pertambahan bersih (net) dalam periode.</li>
+      <li><b>RPM</b> = Revenue ÷ Engaged views × 1.000, hanya dari channel-bulan yang sudah punya data revenue. Rumus ini sama dengan YouTube Studio (diuji ke Excel, selisih &lt; 0,01%).</li>
+      <li><b>Avg view duration</b> = Watch time ÷ Engaged views. <b>CTR</b> = klik thumbnail ÷ impressions. Keduanya dihitung ulang dari total, <u>tidak</u> merata-ratakan angka per channel.</li>
+      <li><b>Engagement rate</b> = (Likes + Comments + Shares) ÷ Views.</li>
+      <li><b>Pembanding</b>: YoY = bulan yang sama tahun sebelumnya; Previous period = rentang dengan panjang yang sama tepat sebelum periode terpilih. Kalau data pembanding tidak lengkap, perubahan tidak ditampilkan.</li>
+      <li>Sumber: <span id="srcList"></span>. Data diperbarui: <span id="genAt"></span>.</li>
+    </ul>
+  </details>
+</main>
+<div class="tip" id="tip"></div>
+
+<script src="data.js?v=2"></script>
+<script>
+"use strict";
+// ======================= DATA =======================
+const D = window.DATA;
+const COLS = D.columns;
+const ROWS = D.rows.map(r => Object.fromEntries(COLS.map((c, i) => [c, r[i]])));
+const PERIODS = D.meta.periods;
+// Urutan unit tetap (menentukan warna). Unit baru di luar daftar ditaruh di belakang.
+const UNIT_ORDER = ['RCTI', 'GTV', 'MNCTV'];
+const UNITS = Object.values(D.meta.groups).flat().sort((a, b) => ((UNIT_ORDER.indexOf(a) + 1) || 99) - ((UNIT_ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
+// Warna per unit tetap (urutan slot palet), tidak bergantung filter.
+const UNIT_COLOR = {};
+UNITS.forEach((u, i) => UNIT_COLOR[u] = `var(--s${(i % 8) + 1})`);
+
+const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const pLabel = p => `${BLN[+p.slice(5) - 1]} ${p.slice(0, 4)}`;
+const pShort = p => `${BLN[+p.slice(5) - 1]} '${p.slice(2, 4)}`;
+const pAdd = (p, n) => { let y = +p.slice(0, 4), m = +p.slice(5) - 1 + n; y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; return `${y}-${String(m + 1).padStart(2, '0')}`; };
+const pRange = (a, b) => { const out = []; for (let p = a; p <= b; p = pAdd(p, 1)) out.push(p); return out; };
+
+// ======================= AGREGASI =======================
+// Semua angka aditif dijumlahkan; rasio dihitung SETELAH penjumlahan.
+// Rasio hanya memakai baris yang pembilang & penyebutnya sama-sama ada —
+// kalau tidak, channel tanpa data revenue akan menurunkan RPM secara palsu.
+function agg(rows) {
+  const s = { n: rows.length };
+  const add = (k, v) => { if (v != null) s[k] = (s[k] || 0) + v; };
+  for (const r of rows) {
+    for (const k of ['views','eng_views','watch_hours','subs','videos','impressions','likes','comments','shares','revenue','ad_revenue','ad_impressions']) add(k, r[k]);
+    if (r.revenue != null && r.eng_views) { add('_rpm_num', r.revenue); add('_rpm_den', r.eng_views); }
+    if (r.imp_clicks != null && r.impressions) { add('_ctr_num', r.imp_clicks); add('_ctr_den', r.impressions); }
+    if (r.watch_hours != null && r.eng_views) { add('_avd_num', r.watch_hours * 3600); add('_avd_den', r.eng_views); }
+    if (r.views) { add('_er_num', (r.likes || 0) + (r.comments || 0) + (r.shares || 0)); add('_er_den', r.views); }
+  }
+  return s;
+}
+const div = (a, b, k = 1) => (a == null || !b) ? null : a / b * k;
+
+const METRICS = {
+  views:   { label: 'Views', get: s => s.views ?? null, fmt: v => fmtN(v) },
+  watch:   { label: 'Watch time (jam)', get: s => s.watch_hours ?? null, fmt: v => fmtN(v) },
+  subs:    { label: 'Subscribers (net)', get: s => s.subs ?? null, fmt: v => fmtN(v, true) },
+  revenue: { label: 'Revenue', get: s => s.revenue ?? null, fmt: v => 'Rp' + fmtN(v) },
+  rpm:     { label: 'RPM', get: s => div(s._rpm_num, s._rpm_den, 1000), fmt: v => 'Rp' + fmtInt(v) },
+  ctr:     { label: 'CTR', get: s => div(s._ctr_num, s._ctr_den, 100), fmt: v => fmtPct(v), pct: true },
+  avd:     { label: 'Avg view duration', get: s => div(s._avd_num, s._avd_den), fmt: v => fmtDur(v) },
+  er:      { label: 'Engagement rate', get: s => div(s._er_num, s._er_den, 100), fmt: v => fmtPct(v, 2), pct: true },
+};
+
+// ======================= FORMAT =======================
+const nf = (d) => new Intl.NumberFormat('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
+function fmtN(v, signed) {
+  if (v == null) return '—';
+  const a = Math.abs(v), sg = v < 0 ? '−' : (signed && v > 0 ? '+' : '');
+  if (a >= 1e12) return sg + nf(2).format(a / 1e12) + ' T';
+  if (a >= 1e9) return sg + nf(2).format(a / 1e9) + ' M';
+  if (a >= 1e6) return sg + nf(1).format(a / 1e6) + ' jt';
+  if (a >= 1e3) return sg + nf(1).format(a / 1e3) + ' rb';
+  return sg + nf(0).format(a);
+}
+const fmtInt = v => v == null ? '—' : nf(0).format(v);
+const fmtPct = (v, d = 1) => v == null ? '—' : nf(d).format(v) + '%';
+const fmtDur = v => { if (v == null) return '—'; v = Math.round(v); const m = Math.floor(v / 60), s = v % 60; return `${m}:${String(s).padStart(2, '0')}`; };
+function delta(cur, prev, isPct) {
+  if (cur == null || prev == null) return { txt: '—', cls: 'flat', v: null };
+  if (isPct) { const d = cur - prev; return { txt: (d > 0 ? '▲ +' : d < 0 ? '▼ −' : '') + nf(2).format(Math.abs(d)) + ' pp', cls: d > 0 ? 'up' : d < 0 ? 'down' : 'flat', v: d }; }
+  if (prev === 0) return { txt: 'baru', cls: 'flat', v: null };
+  const d = (cur - prev) / Math.abs(prev) * 100;
+  return { txt: (d > 0 ? '▲ +' : d < 0 ? '▼ −' : '') + nf(1).format(Math.abs(d)) + '%', cls: d > 0.05 ? 'up' : d < -0.05 ? 'down' : 'flat', v: d };
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ======================= STATE & FILTER =======================
+const last = PERIODS[PERIODS.length - 1];
+const S = { from: last.slice(0, 4) + '-01', to: last, cmp: 'yoy', units: new Set(UNITS), ch: 'ALL', trend: 'views', sort: 'views', asc: false, q: '' };
+if (!PERIODS.includes(S.from)) S.from = PERIODS[0];
+
+const $ = id => document.getElementById(id);
+function cmpRange() {
+  const cur = pRange(S.from, S.to);
+  if (S.cmp === 'yoy') return cur.map(p => pAdd(p, -12));
+  return cur.map(p => pAdd(p, -cur.length));
+}
+const inScope = r => S.units.has(r.unit) && (S.ch === 'ALL' || r.channel === S.ch);
+const rowsFor = (periods) => { const set = new Set(periods); return ROWS.filter(r => set.has(r.period) && inScope(r)); };
+
+function buildFilters() {
+  for (const id of ['fFrom', 'fTo']) $(id).innerHTML = PERIODS.map(p => `<option value="${p}">${pLabel(p)}</option>`).join('');
+  $('fFrom').value = S.from; $('fTo').value = S.to;
+  $('fUnit').innerHTML = `<button class="chip" data-u="ALL">All</button>` +
+    UNITS.map(u => `<button class="chip" data-u="${esc(u)}"><span class="sw" style="background:${UNIT_COLOR[u]}"></span>${esc(u)}</button>`).join('');
+  $('fTrend').innerHTML = Object.entries(METRICS).map(([k, m]) => `<option value="${k}">${m.label}</option>`).join('');
+  $('fFrom').onchange = e => { S.from = e.target.value; if (S.from > S.to) { S.to = S.from; $('fTo').value = S.to; } render(); };
+  $('fTo').onchange = e => { S.to = e.target.value; if (S.to < S.from) { S.from = S.to; $('fFrom').value = S.from; } render(); };
+  $('fCmp').onchange = e => { S.cmp = e.target.value; render(); };
+  $('fUnit').onclick = e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const u = b.dataset.u;
+    if (u === 'ALL') S.units = new Set(UNITS);
+    else if (S.units.size === UNITS.length) S.units = new Set([u]);       // klik pertama = fokus satu unit
+    else { S.units.has(u) ? S.units.delete(u) : S.units.add(u); if (!S.units.size) S.units = new Set(UNITS); }
+    // Channel terpilih yang tidak ada di unit baru dilepas, supaya tabel tidak kosong diam-diam.
+    if (S.ch !== 'ALL' && !ROWS.some(r => r.channel === S.ch && S.units.has(r.unit))) S.ch = 'ALL';
+    render();
+  };
+  $('fCh').onchange = e => { S.ch = e.target.value; render(); };
+  $('fTrend').onchange = e => { S.trend = e.target.value; renderTrend(); };
+  $('fSearch').oninput = e => { S.q = e.target.value.toLowerCase(); renderRank(); };
+  $('btnCsv').onclick = exportCsv;
+}
+
+// ======================= RENDER =======================
+let CUR = [], PRV = [], CMP_OK = true;
+function render() {
+  const allU = S.units.size === UNITS.length;
+  document.querySelectorAll('#fUnit .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === 'ALL' ? allU : (!allU && S.units.has(b.dataset.u))));
+  const chs = [...new Set(ROWS.filter(r => S.units.has(r.unit)).map(r => r.channel))].sort((a, b) => a.localeCompare(b));
+  $('fCh').innerHTML = `<option value="ALL">All channels (${chs.length})</option>` + chs.map(c => `<option>${esc(c)}</option>`).join('');
+  $('fCh').value = S.ch;
+
+  const cur = pRange(S.from, S.to), prv = cmpRange();
+  CUR = rowsFor(cur); PRV = rowsFor(prv);
+  // Pembanding hanya sah kalau SEMUA bulannya ada di data.
+  CMP_OK = prv.every(p => PERIODS.includes(p));
+  const cmpTxt = `${pLabel(prv[0])}${prv.length > 1 ? ' – ' + pLabel(prv[prv.length - 1]) : ''}`;
+  $('cmpWarn').style.display = CMP_OK ? 'none' : 'block';
+  $('cmpWarn').textContent = `Data pembanding (${cmpTxt}) belum tersedia lengkap, jadi perubahan (▲▼) tidak ditampilkan. Pilih "Previous period" atau geser periode.`;
+  const scope = S.ch !== 'ALL' ? S.ch : allU ? 'Semua unit' : [...S.units].join(', ');
+  $('scopeNote').innerHTML = `Menampilkan <b>${esc(scope)}</b> · ${pLabel(cur[0])}${cur.length > 1 ? ' – ' + pLabel(cur[cur.length - 1]) : ''}` +
+    (CMP_OK ? ` dibandingkan <b>${cmpTxt}</b>` : '');
+
+  renderKpis(); renderTrend(); renderUnits(); renderRank();
+}
+
+function renderKpis() {
+  const a = agg(CUR), b = agg(PRV);
+  $('kpis').innerHTML = Object.entries(METRICS).map(([k, m]) => {
+    const v = m.get(a), p = CMP_OK ? m.get(b) : null, d = delta(v, p, m.pct);
+    return `<div class="card kpi" data-k="${k}"><div class="lab">${m.label}</div><div class="val">${m.fmt(v)}</div>
+      <div class="cmp"><span class="delta ${d.cls}">${d.txt}</span>${CMP_OK ? ' vs ' + m.fmt(p) : ''}</div></div>`;
+  }).join('');
+}
+
+function renderUnits() {
+  const units = UNITS.filter(u => S.units.has(u));
+  const tot = agg(CUR);
+  const rows = units.map(u => {
+    const a = agg(CUR.filter(r => r.unit === u)), b = agg(PRV.filter(r => r.unit === u));
+    return { u, a, b };
+  });
+  const th = `<tr><th class="l">Unit</th><th>Views</th><th>Δ</th><th>Revenue</th><th>Δ</th><th>Share Rev.</th></tr>`;
+  const tr = rows.map(({ u, a, b }) => {
+    const dv = delta(a.views, CMP_OK ? b.views : null), dr = delta(a.revenue, CMP_OK ? b.revenue : null);
+    return `<tr><td class="l"><span class="tag"><span class="sw" style="background:${UNIT_COLOR[u]}"></span>${esc(u)}</span></td>
+      <td>${fmtN(a.views)}</td><td class="delta ${dv.cls}">${dv.txt}</td><td>Rp${fmtN(a.revenue)}</td><td class="delta ${dr.cls}">${dr.txt}</td>
+      <td>${fmtPct(div(a.revenue, tot.revenue, 100))}</td></tr>`;
+  }).join('');
+  $('unitTbl').innerHTML = `<table><thead>${th}</thead><tbody>${tr}</tbody></table>
+    <div class="note" style="margin-top:8px">Klik chip Unit di atas untuk fokus ke satu unit.</div>`;
+}
+
+// ---------- Trend chart (SVG, satu sumbu) ----------
+function renderTrend() {
+  const m = METRICS[S.trend];
+  const series = S.ch !== 'ALL'
+    ? [{ name: S.ch, color: UNIT_COLOR[ROWS.find(r => r.channel === S.ch)?.unit] || 'var(--s1)', rows: ROWS.filter(r => r.channel === S.ch && S.units.has(r.unit)) }]
+    : UNITS.filter(u => S.units.has(u)).map(u => ({ name: u, color: UNIT_COLOR[u], rows: ROWS.filter(r => r.unit === u) }));
+  const pts = series.map(s => PERIODS.map(p => m.get(agg(s.rows.filter(r => r.period === p)))));
+  const W = 760, H = 300, L = 62, R = 70, T = 14, B = 34;
+  const all = pts.flat().filter(v => v != null);
+  let lo = Math.min(0, ...all), hi = Math.max(...all, 0) || 1;
+  const step = niceStep((hi - lo) / 4); hi = Math.ceil(hi / step) * step; lo = Math.floor(lo / step) * step;
+  const x = i => L + (W - L - R) * (PERIODS.length === 1 ? .5 : i / (PERIODS.length - 1));
+  const y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo || 1));
+  const i0 = PERIODS.indexOf(S.from), i1 = PERIODS.indexOf(S.to);
+  let g = `<rect x="${x(i0) - 6}" y="${T}" width="${x(i1) - x(i0) + 12}" height="${H - T - B}" fill="#2a78d6" opacity=".07" rx="4"/>`;
+  for (let v = lo; v <= hi + 1e-9; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--text-3)">${axisFmt(v, S.trend)}</text>`;
+  // Label sumbu X: tiap 2 bulan kalau panjang; bulan terakhir selalu tampil, tapi
+  // label sebelahnya dilewati supaya tidak bertumpuk.
+  const nL = PERIODS.length - 1;
+  PERIODS.forEach((p, i) => { if (PERIODS.length <= 12 || i === nL || (i % 2 === 0 && nL - i >= 2)) g += `<text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--text-3)">${pShort(p)}</text>`; });
+  series.forEach((s, si) => {
+    let d = '', pen = false;
+    pts[si].forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); pen = true; });
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const li = pts[si].map((v, i) => v == null ? -1 : i).filter(i => i >= 0).pop();
+    if (li != null && series.length <= 4) g += `<text x="${x(li) + 8}" y="${y(pts[si][li]) + 4}" font-size="11" font-weight="600" fill="var(--text-2)">${esc(s.name)}</text>`;
+  });
+  g += `<line id="xh" y1="${T}" y2="${H - B}" stroke="var(--text-3)" stroke-dasharray="3 3" visibility="hidden"/>`;
+  g += series.map((s, si) => `<circle class="dot" data-s="${si}" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>`).join('');
+  g += `<rect id="hit" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>`;
+  $('trend').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Tren bulanan ${m.label}">${g}</svg>`;
+  $('trendLegend').innerHTML = series.length > 1 ? series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('') : '';
+
+  const svg = $('trend').querySelector('svg'), tip = $('tip');
+  svg.querySelector('#hit').onmousemove = e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const lx = pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+    const i = Math.max(0, Math.min(PERIODS.length - 1, Math.round((lx - L) / ((W - L - R) / Math.max(1, PERIODS.length - 1)))));
+    svg.querySelector('#xh').setAttribute('x1', x(i)); svg.querySelector('#xh').setAttribute('x2', x(i)); svg.querySelector('#xh').setAttribute('visibility', 'visible');
+    svg.querySelectorAll('.dot').forEach(c => { const v = pts[c.dataset.s][i]; if (v == null) { c.setAttribute('visibility', 'hidden'); return; } c.setAttribute('cx', x(i)); c.setAttribute('cy', y(v)); c.setAttribute('visibility', 'visible'); });
+    tip.innerHTML = `<b>${pLabel(PERIODS[i])}</b>` + series.map((s, si) => ({ s, v: pts[si][i] })).sort((a, b) => (b.v ?? -1e18) - (a.v ?? -1e18))
+      .map(({ s, v }) => `<div><span><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</span><span>${m.fmt(v)}</span></div>`).join('');
+    tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+  };
+  svg.querySelector('#hit').onmouseleave = () => { tip.style.display = 'none'; svg.querySelector('#xh').setAttribute('visibility', 'hidden'); svg.querySelectorAll('.dot').forEach(c => c.setAttribute('visibility', 'hidden')); };
+}
+function niceStep(r) { if (r <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(r))), f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+function axisFmt(v, k) { if (k === 'ctr' || k === 'er') return nf(k === 'er' ? 2 : 1).format(v) + '%'; if (k === 'avd') return fmtDur(v); if (k === 'rpm') return fmtInt(v); return fmtN(v); }
+
+// ---------- Channel ranking ----------
+const RANK_COLS = [
+  { k: 'channel', label: 'Channel', l: true }, { k: 'unit', label: 'Unit', l: true },
+  { k: 'views', label: 'Views' }, { k: 'views_d', label: 'Δ Views' },
+  { k: 'watch', label: 'Watch time (jam)' }, { k: 'subs', label: 'Subs (net)' },
+  { k: 'revenue', label: 'Revenue' }, { k: 'revenue_d', label: 'Δ Revenue' },
+  { k: 'rpm', label: 'RPM' }, { k: 'ctr', label: 'CTR' }, { k: 'avd', label: 'AVD' }, { k: 'er', label: 'ER' },
+];
+let RANK = [];
+function renderRank() {
+  const by = new Map();
+  for (const r of CUR) { const k = r.unit + '|' + r.channel; if (!by.has(k)) by.set(k, { unit: r.unit, channel: r.channel, c: [], p: [] }); by.get(k).c.push(r); }
+  for (const r of PRV) { const k = r.unit + '|' + r.channel; if (by.has(k)) by.get(k).p.push(r); }
+  RANK = [...by.values()].map(o => {
+    const a = agg(o.c), b = agg(o.p), M = METRICS;
+    return { unit: o.unit, channel: o.channel,
+      views: M.views.get(a), views_d: delta(M.views.get(a), CMP_OK ? M.views.get(b) : null).v,
+      watch: M.watch.get(a), subs: M.subs.get(a),
+      revenue: M.revenue.get(a), revenue_d: delta(M.revenue.get(a), CMP_OK ? M.revenue.get(b) : null).v,
+      rpm: M.rpm.get(a), ctr: M.ctr.get(a), avd: M.avd.get(a), er: M.er.get(a) };
+  });
+  const rows = RANK.filter(r => !S.q || r.channel.toLowerCase().includes(S.q))
+    .sort((a, b) => { const x = a[S.sort], y = b[S.sort]; if (x == null) return 1; if (y == null) return -1; const c = typeof x === 'string' ? x.localeCompare(y) : x - y; return S.asc ? c : -c; });
+  const dcell = v => v == null ? `<td class="flat">—</td>` : `<td class="delta ${v > 0.05 ? 'up' : v < -0.05 ? 'down' : 'flat'}">${v > 0 ? '▲ +' : v < 0 ? '▼ −' : ''}${nf(1).format(Math.abs(v))}%</td>`;
+  $('rank').innerHTML = `<thead><tr>${RANK_COLS.map(c => `<th class="${c.l ? 'l' : ''} ${S.sort === c.k ? 'sorted' + (S.asc ? ' asc' : '') : ''}" data-k="${c.k}">${c.label}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map((r, i) => `<tr><td class="l">${i + 1}. ${esc(r.channel)}</td><td class="l"><span class="tag"><span class="sw" style="background:${UNIT_COLOR[r.unit]}"></span>${esc(r.unit)}</span></td>
+      <td>${fmtN(r.views)}</td>${dcell(r.views_d)}<td>${fmtN(r.watch)}</td><td>${fmtN(r.subs, true)}</td>
+      <td>${r.revenue == null ? '—' : 'Rp' + fmtN(r.revenue)}</td>${dcell(r.revenue_d)}<td>${r.rpm == null ? '—' : 'Rp' + fmtInt(r.rpm)}</td>
+      <td>${fmtPct(r.ctr)}</td><td>${fmtDur(r.avd)}</td><td>${fmtPct(r.er, 2)}</td></tr>`).join('') + '</tbody>';
+  $('rank').querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; if (S.sort === k) S.asc = !S.asc; else { S.sort = k; S.asc = k === 'channel' || k === 'unit'; } renderRank(); });
+  $('rankNote').textContent = `${rows.length} channel · klik judul kolom untuk mengurutkan`;
+}
+
+function exportCsv() {
+  const head = ['Channel', 'Unit', 'Views', 'Delta Views %', 'Watch time (jam)', 'Subscribers (net)', 'Revenue (IDR)', 'Delta Revenue %', 'RPM (IDR)', 'CTR %', 'AVD (detik)', 'ER %'];
+  const keys = ['channel', 'unit', 'views', 'views_d', 'watch', 'subs', 'revenue', 'revenue_d', 'rpm', 'ctr', 'avd', 'er'];
+  const q = v => v == null ? '' : typeof v === 'number' ? String(Math.round(v * 100) / 100) : `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [head.join(','), ...RANK.map(r => keys.map(k => q(r[k])).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
+  a.download = `channel_ranking_${S.from}_${S.to}.csv`; a.click();
+}
+
+// ======================= INIT =======================
+$('sub').textContent = `YouTube · ${Object.keys(D.meta.groups).join(', ')} · data ${pLabel(PERIODS[0])} – ${pLabel(last)}`;
+$('srcList').textContent = D.meta.sources.join(', ');
+$('genAt').textContent = D.meta.generated;
+buildFilters(); render();
+</script>
 </body>
 </html>
